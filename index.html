@@ -706,7 +706,7 @@
     }
     const cfg = loadConfig();
     const getAllTopic = `${cfg.prefix}/devices/state/getAll`;
-    client.publish(getAllTopic, '', { qos: 1, retain: false }, (err) => {
+    client.publish(getAllTopic, '', { qos: 0, retain: true }, (err) => {
       if (err) console.warn('getAll publish error', err);
       else console.log('📡 Requested fresh full state snapshot');
     });
@@ -738,7 +738,7 @@
     if (client && client.connected) {
       const topic = `${cfg.prefix}/devices/${id}/set`;
       const payload = JSON.stringify({ state: newState });
-      client.publish(topic, payload, { qos: 1 }, (err) => {
+      client.publish(topic, payload, { qos: 0 }, (err) => {
         if (err) {
           showToast(`Publish failed: ${err.message}`);
           if (optimisticTimers[id]) clearTimeout(optimisticTimers[id]);
@@ -797,11 +797,11 @@
       const stateAllTopic = `${cfg.prefix}/devices/state/all`;
       const perDeviceTopic = `${cfg.prefix}/devices/+/state`;
 
-      client.subscribe(stateAllTopic, { qos: 1 }, (err) => {
+      client.subscribe(stateAllTopic, { qos: 0 }, (err) => {
         if (err) console.warn('Subscribe all error', err);
         else console.log(`✅ Subscribed to ${stateAllTopic}`);
       });
-      client.subscribe(perDeviceTopic, { qos: 1 }, (err) => {
+      client.subscribe(perDeviceTopic, { qos: 0 }, (err) => {
         if (err) console.warn('Subscribe per-device error', err);
       });
 
