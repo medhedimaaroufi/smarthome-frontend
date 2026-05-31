@@ -780,7 +780,7 @@ function applySnapshot(payloadStr, source) {
     let ch = 0;
     for (const dev of ALL) {
       if (data.hasOwnProperty(dev.id)) {
-        const ns = String(data[dev.id]).toUpperCase() === 'ON' ? 'ON' : 'OFF';
+        const ns = String(data[dev.id]).toUpperCase() === 'ON' ? 'OFF' : 'ON';
         if (deviceState[dev.id] !== ns) {
           deviceState[dev.id] = ns;
           updateCardEl(dev.id, ns === 'ON');
@@ -841,7 +841,7 @@ syncOrb.addEventListener('click', requestSnapshot);
 // ─────────────────────────────────────────────
 function handleToggle(id, desiredOn) {
   const cfg = loadCfg();
-  const ns = desiredOn ? 'ON' : 'OFF';
+  const ns = desiredOn ? 'OFF' : 'ON';
   const os = deviceState[id] || 'OFF';
   deviceState[id] = ns;
   updateCardEl(id, desiredOn);
@@ -915,7 +915,7 @@ function connectMqtt() {
       const devId = m[1];
       try {
         const p  = JSON.parse(pay);
-        const on = String(p.state).toUpperCase() === 'ON';
+        const on = String(p.state).toUpperCase() !== 'ON';
         if (optimisticTimers[devId]) { clearTimeout(optimisticTimers[devId]); delete optimisticTimers[devId]; }
         const ns = on ? 'ON' : 'OFF';
         if (deviceState[devId] !== ns) { deviceState[devId] = ns; updateCardEl(devId, on); }
