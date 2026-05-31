@@ -1,948 +1,980 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Casa — Smart Home | Active Sync</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.0.5/mqtt.min.js"></script>
-  <style>
-    *,
-    *::before,
-    *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Casa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,300;0,400;0,500&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/5.0.5/mqtt.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 
-    :root {
-      --bg: #0d0f14;
-      --surface: #151820;
-      --surface2: #1c2030;
-      --border: #252a3a;
-      --text: #e8eaf0;
-      --muted: #5a6078;
-      --on: #30d46a;
-      --on-glow: rgba(48, 212, 106, 0.28);
-      --off: #2a2f40;
-      --red: #ff4558;
-      --red-glow: rgba(255, 69, 88, 0.18);
-      --amber: #f5a623;
-      --radius: 16px;
-      --font-head: 'Syne', sans-serif;
-      --font-mono: 'DM Mono', monospace;
-    }
+:root{
+  --bg0:#07080c;
+  --bg1:#0c0e14;
+  --s1:#11141d;
+  --s2:#171b26;
+  --s3:#1e2232;
+  --b1:#252b3d;
+  --b2:#2e3550;
+  --tx:#e8eaf5;
+  --tx2:#7a82a0;
+  --tx3:#3d4460;
+  --on:#00e57a;
+  --on2:#00b85f;
+  --on-a:rgba(0,229,122,0.15);
+  --on-b:rgba(0,229,122,0.06);
+  --amber:#ffaa00;
+  --red:#ff3d5a;
+  --red-a:rgba(255,61,90,0.12);
+  --blue:#3d8eff;
+  --pool:#00c4e8;
+  --pool-a:rgba(0,196,232,0.12);
+  --font:'Outfit',sans-serif;
+  --mono:'DM Mono',monospace;
+  --display:'Bebas Neue',sans-serif;
+  --ease-spring:cubic-bezier(0.34,1.56,0.64,1);
+  --ease-out:cubic-bezier(0.22,1,0.36,1);
+}
 
-    html,
-    body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-head);
-      -webkit-tap-highlight-color: transparent;
-      overscroll-behavior: none;
-    }
+html,body{
+  height:100%;
+  background:var(--bg0);
+  color:var(--tx);
+  font-family:var(--font);
+  -webkit-tap-highlight-color:transparent;
+  overscroll-behavior:none;
+  cursor:default;
+}
 
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      background-size: 180px;
-      opacity: 0.5;
-    }
+/* ── AMBIENT BACKGROUND ── */
+#ambient{
+  position:fixed;inset:0;z-index:0;pointer-events:none;
+  transition:opacity 2s ease;
+}
+#ambient canvas{width:100%;height:100%;display:block}
 
-    #app {
-      position: relative;
-      z-index: 1;
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-      max-width: 480px;
-      margin: 0 auto;
-      padding: 0 0 env(safe-area-inset-bottom, 24px);
-    }
+/* ── GRAIN OVERLAY ── */
+body::after{
+  content:'';position:fixed;inset:0;z-index:1;pointer-events:none;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-size:200px;opacity:.6;
+}
 
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 20px 20px 12px;
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: linear-gradient(to bottom, var(--bg) 70%, transparent);
-    }
+#shell{
+  position:relative;z-index:2;
+  min-height:100dvh;
+  display:flex;flex-direction:column;
+  max-width:430px;margin:0 auto;
+  padding-bottom:120px;
+}
 
-    .wordmark {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      background: linear-gradient(135deg, #fff 30%, var(--muted));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
+/* ── HEADER ── */
+header{
+  padding:22px 20px 0;
+  display:flex;align-items:flex-start;justify-content:space-between;
+}
 
-    .wordmark span {
-      -webkit-text-fill-color: var(--on);
-    }
+.logo-block{}
+.logo{
+  font-family:var(--display);
+  font-size:42px;letter-spacing:2px;
+  line-height:1;color:var(--tx);
+  position:relative;display:inline-block;
+}
+.logo::after{
+  content:'';
+  position:absolute;bottom:-3px;left:0;
+  width:100%;height:2px;
+  background:linear-gradient(90deg,var(--on),transparent);
+}
+.logo-sub{
+  font-family:var(--mono);font-size:9px;
+  color:var(--tx3);letter-spacing:.16em;
+  text-transform:uppercase;margin-top:6px;
+}
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+/* connection arc */
+.conn-arc-wrap{display:flex;flex-direction:column;align-items:center;gap:4px;margin-top:4px}
+#conn-arc{width:52px;height:28px;overflow:visible}
+.conn-arc-label{font-family:var(--mono);font-size:9px;color:var(--tx3);letter-spacing:.08em}
 
-    #conn-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 5px 11px;
-      border-radius: 999px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: .02em;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      transition: all .3s ease;
-    }
+/* ── ENERGY BAR ── */
+.energy-section{
+  margin:24px 20px 0;
+  background:var(--s1);
+  border:1px solid var(--b1);
+  border-radius:18px;
+  padding:16px 18px;
+  position:relative;overflow:hidden;
+}
+.energy-section::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
+}
+.energy-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.energy-label{font-family:var(--mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx3)}
+.energy-value{
+  font-family:var(--display);font-size:28px;letter-spacing:1px;
+  background:linear-gradient(135deg,var(--on),#80ffbe);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.energy-track{
+  height:4px;background:var(--s3);border-radius:99px;overflow:hidden;
+}
+.energy-fill{
+  height:100%;border-radius:99px;
+  background:linear-gradient(90deg,var(--on2),var(--on),#80ffbe);
+  transition:width 1s var(--ease-out);
+  position:relative;
+}
+.energy-fill::after{
+  content:'';position:absolute;right:0;top:-2px;
+  width:8px;height:8px;border-radius:50%;
+  background:var(--on);
+  box-shadow:0 0 10px var(--on),0 0 20px var(--on-a);
+  animation:tip-pulse 2s ease infinite;
+}
+@keyframes tip-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.7)}}
 
-    #conn-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      background: var(--muted);
-      transition: background .3s, box-shadow .3s;
-    }
+.energy-devices{
+  display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;
+}
+.e-chip{
+  font-family:var(--mono);font-size:9px;
+  padding:3px 9px;border-radius:99px;
+  background:var(--s2);border:1px solid var(--b1);
+  color:var(--tx2);
+  transition:all .3s;
+}
+.e-chip.on{
+  background:var(--on-b);border-color:rgba(0,229,122,.3);color:var(--on);
+}
 
-    #conn-pill.connected {
-      border-color: var(--on);
-      background: rgba(48, 212, 106, 0.08);
-    }
+/* ── SECTION LABELS ── */
+.section-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:26px 20px 12px;
+}
+.section-title{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--tx3);
+}
+.section-badge{
+  font-family:var(--mono);font-size:9px;
+  padding:3px 10px;border-radius:99px;
+  background:var(--s2);border:1px solid var(--b1);color:var(--tx3);
+}
 
-    #conn-pill.connected #conn-dot {
-      background: var(--on);
-      box-shadow: 0 0 6px var(--on);
-    }
+/* ── DEVICE GRID ── */
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  padding:0 14px;
+}
 
-    #conn-pill.connecting {
-      border-color: var(--amber);
-      background: rgba(245, 166, 35, 0.08);
-    }
+/* ── DEVICE CARD ── */
+.card{
+  background:var(--s1);
+  border:1px solid var(--b1);
+  border-radius:20px;
+  padding:18px 16px 16px;
+  display:flex;flex-direction:column;gap:0;
+  position:relative;overflow:hidden;
+  cursor:pointer;
+  -webkit-user-select:none;user-select:none;
+  transition:border-color .3s,background .3s,box-shadow .4s,transform .15s;
+  -webkit-touch-callout:none;
+}
+.card::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;
+  background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.04),transparent 70%);
+  pointer-events:none;
+}
 
-    #conn-pill.connecting #conn-dot {
-      background: var(--amber);
-      animation: pulse 1s infinite;
-    }
+/* hold-progress ring */
+.card-ring{
+  position:absolute;inset:0;border-radius:20px;pointer-events:none;
+  opacity:0;transition:opacity .15s;
+}
+.card-ring svg{position:absolute;inset:0;width:100%;height:100%}
+.card-ring rect{
+  fill:none;stroke:var(--on);stroke-width:2;
+  rx:20;ry:20;
+  stroke-dasharray:0 9999;
+  transition:stroke-dasharray .05s linear;
+}
 
-    #conn-pill.disconnected {
-      border-color: var(--red);
-      background: var(--red-glow);
-    }
+.card.on{
+  border-color:rgba(0,229,122,.3);
+  background:linear-gradient(145deg,rgba(0,229,122,.07),var(--s1) 60%);
+  box-shadow:0 0 30px rgba(0,229,122,.08),inset 0 1px 0 rgba(0,229,122,.1);
+}
+.card.pool-type.on{
+  border-color:rgba(0,196,232,.3);
+  background:linear-gradient(145deg,rgba(0,196,232,.07),var(--s1) 60%);
+  box-shadow:0 0 30px rgba(0,196,232,.08),inset 0 1px 0 rgba(0,196,232,.1);
+}
 
-    #conn-pill.disconnected #conn-dot {
-      background: var(--red);
-    }
+.card.pressing{transform:scale(.96);transition:transform .08s ease}
+.card.activated{animation:thunk .35s var(--ease-spring)}
+@keyframes thunk{
+  0%{transform:scale(.92)}
+  60%{transform:scale(1.03)}
+  100%{transform:scale(1)}
+}
 
-    @keyframes pulse {
+/* icon area */
+.card-icon-wrap{
+  width:44px;height:44px;border-radius:14px;
+  background:var(--s2);border:1px solid var(--b1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin-bottom:14px;
+  position:relative;
+  transition:background .3s,border-color .3s,box-shadow .3s;
+}
+.card.on .card-icon-wrap{
+  background:var(--on-a);border-color:rgba(0,229,122,.25);
+  box-shadow:0 0 16px rgba(0,229,122,.15);
+}
+.card.pool-type.on .card-icon-wrap{
+  background:var(--pool-a);border-color:rgba(0,196,232,.25);
+  box-shadow:0 0 16px rgba(0,196,232,.15);
+}
 
-      0%,
-      100% {
-        opacity: 1;
-      }
+/* shimmer on active icon */
+.card.on .card-icon-wrap::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(135deg,rgba(255,255,255,.12),transparent 50%);
+  animation:shimmer 3s ease infinite;
+}
+@keyframes shimmer{0%,100%{opacity:.6}50%{opacity:1}}
 
-      50% {
-        opacity: 0.3;
-      }
-    }
+.card-name{
+  font-size:13px;font-weight:600;color:var(--tx);
+  line-height:1.2;margin-bottom:6px;
+}
+.card-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:auto}
+.card-state{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+  color:var(--tx3);transition:color .3s;
+}
+.card.on .card-state{color:var(--on)}
+.card.pool-type.on .card-state{color:var(--pool)}
 
-    #gear-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all .2s;
-      font-size: 17px;
-    }
+/* pill toggle */
+.pill-toggle{
+  width:32px;height:18px;border-radius:99px;
+  background:var(--s3);border:1px solid var(--b2);
+  position:relative;flex-shrink:0;
+  transition:background .3s,border-color .3s;
+}
+.pill-toggle::after{
+  content:'';position:absolute;
+  top:2px;left:2px;
+  width:12px;height:12px;border-radius:50%;
+  background:var(--tx3);
+  transition:transform .3s var(--ease-spring),background .3s;
+}
+.card.on .pill-toggle{background:var(--on);border-color:var(--on2)}
+.card.on .pill-toggle::after{transform:translateX(14px);background:#fff}
+.card.pool-type.on .pill-toggle{background:var(--pool);border-color:#00a0bf}
 
-    #gear-btn:hover {
-      color: var(--text);
-      border-color: var(--muted);
-    }
+/* optimistic */
+.card.optimistic .card-icon-wrap{animation:opt-pulse 1s ease infinite}
+@keyframes opt-pulse{0%,100%{opacity:.5}50%{opacity:1}}
 
-    #gear-btn:active {
-      transform: scale(.93);
-    }
+/* hold hint */
+.hold-hint{
+  position:absolute;bottom:10px;right:12px;
+  font-family:var(--mono);font-size:8px;color:var(--tx3);
+  letter-spacing:.06em;opacity:0;
+  transition:opacity .2s;pointer-events:none;
+}
+.card:hover .hold-hint,.card:active .hold-hint{opacity:1}
 
-    .section-label {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      padding: 0 20px;
-      margin: 20px 0 10px;
-    }
+/* ── DIVIDER ── */
+.divider{
+  height:1px;margin:22px 20px 0;
+  background:linear-gradient(90deg,transparent,var(--b1),transparent);
+}
 
-    .device-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      padding: 0 14px;
-    }
+/* ── SYNC ORB ── */
+#sync-orb{
+  position:fixed;bottom:32px;right:24px;z-index:50;
+  width:58px;height:58px;
+  border-radius:50%;
+  background:var(--s2);
+  border:1px solid var(--b2);
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 32px rgba(0,0,0,.5),0 2px 4px rgba(0,0,0,.3);
+  transition:transform .2s var(--ease-spring),box-shadow .3s;
+  -webkit-user-select:none;user-select:none;
+}
+#sync-orb:active{transform:scale(.9)}
+#sync-orb:hover{box-shadow:0 8px 40px rgba(0,0,0,.6),0 0 20px rgba(0,229,122,.1)}
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 18px 16px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      position: relative;
-      overflow: hidden;
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-      transition: border-color .25s, box-shadow .25s, transform .12s, background .25s;
-      box-shadow: 0 4px 0 rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .04);
-    }
+.orb-inner{
+  width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--s3),var(--s2));
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.orb-icon{font-size:16px;transition:transform .4s var(--ease-spring)}
+#sync-orb.syncing .orb-icon{animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-    .card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: inherit;
-      background: radial-gradient(ellipse at 30% 0%, rgba(255, 255, 255, .05) 0%, transparent 65%);
-      pointer-events: none;
-    }
+/* orb ripple */
+#sync-orb::before{
+  content:'';position:absolute;inset:-6px;border-radius:50%;
+  border:1px solid transparent;
+  transition:border-color .3s,transform .5s;
+}
+#sync-orb.synced::before{
+  border-color:rgba(0,229,122,.5);
+  transform:scale(1.15);
+  animation:orb-ring 1s var(--ease-out) forwards;
+}
+@keyframes orb-ring{
+  0%{transform:scale(1);opacity:1;border-color:rgba(0,229,122,.6)}
+  100%{transform:scale(1.6);opacity:0;border-color:rgba(0,229,122,0)}
+}
 
-    .card.on {
-      border-color: rgba(48, 212, 106, .4);
-      background: rgba(48, 212, 106, .06);
-      box-shadow: 0 4px 0 rgba(0, 0, 0, .35), 0 0 28px var(--on-glow), inset 0 1px 0 rgba(48, 212, 106, .12);
-    }
+#sync-orb.synced{border-color:rgba(0,229,122,.4);background:var(--on-b)}
+#sync-orb.synced .orb-icon{color:var(--on)}
 
-    .card:active {
-      transform: translateY(3px) scale(.985);
-      box-shadow: 0 1px 0 rgba(0, 0, 0, .35);
-    }
+.orb-label{
+  position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:8px;color:var(--tx3);
+  white-space:nowrap;letter-spacing:.08em;
+}
 
-    .card.optimistic {
-      opacity: 0.7;
-      transition: opacity 0.15s ease;
-    }
+/* ── SETTINGS PANEL ── */
+#settings-btn{
+  position:fixed;bottom:32px;left:24px;z-index:50;
+  width:58px;height:58px;border-radius:50%;
+  background:var(--s2);border:1px solid var(--b2);
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 32px rgba(0,0,0,.5);
+  transition:transform .2s var(--ease-spring);
+  font-size:20px;
+}
+#settings-btn:active{transform:scale(.9)}
+.btn-sub{
+  position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:8px;color:var(--tx3);
+  white-space:nowrap;letter-spacing:.08em;
+}
 
-    .card.optimistic .status-dot {
-      animation: pulseOptimistic 1s infinite;
-    }
+/* ── SYNC TIMESTAMP ── */
+#sync-bar{
+  margin:14px 20px 0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;
+  background:var(--s1);border:1px solid var(--b1);border-radius:12px;
+}
+.sync-bar-left{display:flex;align-items:center;gap:8px}
+.sync-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--tx3);flex-shrink:0;
+  transition:background .3s,box-shadow .3s;
+}
+.sync-dot.fresh{background:var(--on);box-shadow:0 0 8px rgba(0,229,122,.5)}
+.sync-info-text{font-family:var(--mono);font-size:9px;color:var(--tx3);letter-spacing:.06em}
+#sync-ts{font-family:var(--mono);font-size:9px;color:var(--tx2)}
 
-    @keyframes pulseOptimistic {
+/* ── OVERLAY ── */
+.overlay{
+  display:none;position:fixed;inset:0;z-index:100;
+  background:rgba(0,0,0,.75);
+  backdrop-filter:blur(12px);
+  align-items:flex-end;justify-content:center;
+}
+.overlay.open{display:flex}
+.sheet{
+  width:100%;max-width:430px;
+  background:var(--s1);
+  border-radius:26px 26px 0 0;
+  border:1px solid var(--b2);border-bottom:none;
+  padding-bottom:env(safe-area-inset-bottom,20px);
+  animation:sheet-up .3s var(--ease-out);
+}
+@keyframes sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:3px;background:var(--b2);border-radius:99px;margin:12px auto 20px}
+.sheet-title{font-size:18px;font-weight:700;padding:0 22px 16px;border-bottom:1px solid var(--b1)}
+.sheet-body{padding:20px 22px;display:flex;flex-direction:column;gap:14px}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--tx3)}
+.field input{
+  background:var(--s2);border:1px solid var(--b2);border-radius:11px;
+  color:var(--tx);font-family:var(--mono);font-size:12.5px;
+  padding:11px 14px;outline:none;width:100%;
+  transition:border-color .2s;
+}
+.field input:focus{border-color:rgba(0,229,122,.5);background:rgba(0,229,122,.03)}
+.sheet-actions{padding:6px 22px 22px;display:flex;gap:10px}
+.btn{
+  flex:1;padding:14px;border-radius:13px;border:none;
+  font-family:var(--font);font-size:14px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+}
+.btn:active{transform:scale(.97)}
+.btn-cancel{background:var(--s2);color:var(--tx2);border:1px solid var(--b2)}
+.btn-save{background:var(--on);color:#000}
 
-      0%,
-      100% {
-        opacity: 0.5;
-        transform: scale(0.9);
-      }
+/* ── TOAST ── */
+#toast{
+  position:fixed;bottom:110px;left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:var(--s2);border:1px solid var(--b2);
+  padding:10px 18px;border-radius:11px;
+  font-family:var(--mono);font-size:11px;color:var(--tx);
+  opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;
+  white-space:nowrap;z-index:200;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
-      50% {
-        opacity: 1;
-        transform: scale(1.2);
-      }
-    }
-
-    .card-icon {
-      font-size: 26px;
-      line-height: 1;
-      filter: grayscale(1) brightness(.4);
-      transition: filter .3s;
-    }
-
-    .card.on .card-icon {
-      filter: none;
-    }
-
-    .card-name {
-      font-size: 13px;
-      font-weight: 700;
-      line-height: 1.25;
-      color: var(--text);
-    }
-
-    .card-status {
-      display: flex;
-      align-items: center;
-      gap: 7px;
-      margin-top: auto;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: var(--muted);
-      transition: background .25s, box-shadow .25s;
-    }
-
-    .card.on .status-dot {
-      background: var(--on);
-      box-shadow: 0 0 6px var(--on);
-    }
-
-    .status-text {
-      font-family: var(--font-mono);
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: .06em;
-      color: var(--muted);
-      transition: color .25s;
-    }
-
-    .card.on .status-text {
-      color: var(--on);
-    }
-
-    #settings-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      background: rgba(0, 0, 0, .65);
-      backdrop-filter: blur(6px);
-      align-items: flex-end;
-    }
-
-    #settings-overlay.open {
-      display: flex;
-    }
-
-    #settings-panel {
-      width: 100%;
-      max-width: 480px;
-      margin: 0 auto;
-      background: var(--surface);
-      border-radius: 24px 24px 0 0;
-      border-top: 1px solid var(--border);
-      padding: 8px 0 0;
-      animation: slideUp .3s cubic-bezier(.32, 1, .32, 1);
-    }
-
-    @keyframes slideUp {
-      from {
-        transform: translateY(100%);
-      }
-
-      to {
-        transform: translateY(0);
-      }
-    }
-
-    .panel-handle {
-      width: 36px;
-      height: 4px;
-      background: var(--border);
-      border-radius: 99px;
-      margin: 8px auto 20px;
-    }
-
-    .panel-title {
-      font-size: 17px;
-      font-weight: 700;
-      padding: 0 20px 16px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .panel-body {
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .field {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .field label {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      font-weight: 500;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .field input {
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      color: var(--text);
-      font-family: var(--font-mono);
-      font-size: 13px;
-      padding: 11px 13px;
-      outline: none;
-      width: 100%;
-      transition: border-color .2s;
-    }
-
-    .field input:focus {
-      border-color: var(--on);
-    }
-
-    .panel-actions {
-      padding: 0 20px 28px;
-      display: flex;
-      gap: 10px;
-    }
-
-    .btn {
-      flex: 1;
-      padding: 14px;
-      border-radius: 12px;
-      border: none;
-      font-family: var(--font-head);
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all .15s;
-    }
-
-    .btn:active {
-      transform: scale(.97);
-    }
-
-    .btn-cancel {
-      background: var(--surface2);
-      color: var(--muted);
-      border: 1px solid var(--border);
-    }
-
-    .btn-save {
-      background: var(--on);
-      color: #000;
-    }
-
-    #toast {
-      position: fixed;
-      bottom: 32px;
-      left: 50%;
-      transform: translateX(-50%) translateY(16px);
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text);
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity .25s, transform .25s;
-      white-space: nowrap;
-      z-index: 200;
-    }
-
-    #toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-
-    footer {
-      text-align: center;
-      padding: 28px 20px 20px;
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--border);
-      letter-spacing: .06em;
-    }
-
-    .sync-badge {
-      font-size: 9px;
-      margin-left: 6px;
-      font-family: monospace;
-      background: rgba(48, 212, 106, 0.2);
-      padding: 2px 5px;
-      border-radius: 20px;
-    }
-  </style>
+/* ── STAGGER REVEAL ── */
+.card{opacity:0;transform:translateY(16px);animation:card-in .5s var(--ease-out) forwards}
+@keyframes card-in{to{opacity:1;transform:translateY(0)}}
+</style>
 </head>
 <body>
 
-<div id="app">
+<!-- Ambient canvas -->
+<div id="ambient"><canvas id="ambient-canvas"></canvas></div>
+
+<div id="shell">
+
+  <!-- HEADER -->
   <header>
-    <div class="wordmark">casa<span>.</span></div>
-    <div class="header-right">
-      <div id="conn-pill" class="disconnected">
-        <div id="conn-dot"></div>
-        <span id="conn-label">offline</span>
-        <span id="sync-badge" class="sync-badge">⏳</span>
-      </div>
-      <button id="gear-btn" aria-label="Settings">⚙</button>
+    <div class="logo-block">
+      <div class="logo">CASA</div>
+      <div class="logo-sub">smart home ·  active</div>
+    </div>
+    <div class="conn-arc-wrap">
+      <svg id="conn-arc" viewBox="0 0 52 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 26 A22 22 0 0 1 48 26" stroke="#1e2232" stroke-width="3" stroke-linecap="round"/>
+        <path id="arc-fill" d="M4 26 A22 22 0 0 1 48 26" stroke="#3d4460" stroke-width="3" stroke-linecap="round"
+              stroke-dasharray="0 70" style="transition:stroke-dasharray 1s ease,stroke .5s"/>
+        <circle id="arc-dot" cx="26" cy="5" r="3" fill="#3d4460" style="transition:fill .5s"/>
+      </svg>
+      <span class="conn-arc-label" id="conn-label">offline</span>
     </div>
   </header>
 
-  <div class="section-label">Lights</div>
-  <div class="device-grid" id="interactive-grid"></div>
+  <!-- SYNC BAR -->
+  <div id="sync-bar">
+    <div class="sync-bar-left">
+      <div class="sync-dot" id="sync-dot"></div>
+      <span class="sync-info-text">last sync</span>
+    </div>
+    <span id="sync-ts">—</span>
+  </div>
 
-  <div class="section-label">Outdoor &amp; Pool</div>
-  <div class="device-grid" id="remote-grid"></div>
+  <!-- ENERGY BAR -->
+  <div class="energy-section">
+    <div class="energy-top">
+      <span class="energy-label">active devices</span>
+      <span class="energy-value" id="energy-num">0 / 11</span>
+    </div>
+    <div class="energy-track"><div class="energy-fill" id="energy-fill" style="width:0%"></div></div>
+    <div class="energy-devices" id="energy-chips"></div>
+  </div>
 
-  <footer>⚡ real-time sync every 5s & after each action · <span id="sync-timestamp">—</span></footer>
+  <!-- LIGHTS -->
+  <div class="section-row">
+    <span class="section-title">lights</span>
+    <span class="section-badge" id="lights-badge">0 on</span>
+  </div>
+  <div class="grid" id="interactive-grid"></div>
+
+  <div class="divider"></div>
+
+  <!-- OUTDOOR & POOL -->
+  <div class="section-row">
+    <span class="section-title">outdoor &amp; pool</span>
+    <span class="section-badge" id="outdoor-badge">0 on</span>
+  </div>
+  <div class="grid" id="remote-grid"></div>
+
 </div>
 
-<div id="settings-overlay" role="dialog" aria-modal="true">
-  <div id="settings-panel">
-    <div class="panel-handle"></div>
-    <div class="panel-title">Connection Settings</div>
-    <div class="panel-body">
-      <div class="field">
-        <label>Broker URL (wss://)</label>
-        <input id="s-url" type="text" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Topic Prefix</label>
-        <input id="s-prefix" type="text" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Username</label>
-        <input id="s-user" type="text" autocomplete="off">
-      </div>
-      <div class="field">
-        <label>Password</label>
-        <input id="s-pass" type="password" autocomplete="off">
-      </div>
+<!-- SYNC ORB -->
+<div id="sync-orb" role="button" aria-label="Sync">
+  <div class="orb-inner">
+    <span class="orb-icon">↻</span>
+  </div>
+  <span class="orb-label">sync</span>
+</div>
+
+<!-- SETTINGS BTN -->
+<div id="settings-btn" role="button" aria-label="Settings">
+  ⚙
+  <span class="btn-sub">settings</span>
+</div>
+
+<!-- SETTINGS SHEET -->
+<div class="overlay" id="settings-overlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Connection</div>
+    <div class="sheet-body">
+      <div class="field"><label>Broker URL (wss://)</label><input id="s-url" type="text" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label>Topic Prefix</label><input id="s-prefix" type="text" autocomplete="off" spellcheck="false"></div>
+      <div class="field"><label>Username</label><input id="s-user" type="text" autocomplete="off"></div>
+      <div class="field"><label>Password</label><input id="s-pass" type="password" autocomplete="off"></div>
     </div>
-    <div class="panel-actions">
+    <div class="sheet-actions">
       <button class="btn btn-cancel" id="cancel-btn">Cancel</button>
       <button class="btn btn-save" id="save-btn">Save &amp; Connect</button>
     </div>
   </div>
 </div>
+
 <div id="toast"></div>
 
 <script>
-  // ---------- DEVICE DEFINITIONS ----------
-  const INTERACTIVE = [
-    { id: 'light1', name: 'Living Room', icon: '💡' },
-    { id: 'light2', name: 'Kitchen', icon: '💡' },
-    { id: 'light3', name: 'Bedroom', icon: '🌙' },
-    { id: 'light4', name: 'Hallway', icon: '🏠' },
-    { id: 'light5', name: 'Bathroom', icon: '🚿' },
-    { id: 'light6', name: 'Garage', icon: '🚗' },
-  ];
-  const REMOTE = [
-    { id: 'pump1', name: 'Pool Pump', icon: '🌊' },
-    { id: 'tree_light', name: 'Tree Light', icon: '🌳' },
-    { id: 'jacuzzi', name: 'Jacuzzi', icon: '♨️' },
-    { id: 'pool_filter', name: 'Pool Filter', icon: '🔄' },
-    { id: 'wall_light', name: 'Wall Light', icon: '🔆' },
-  ];
-  const ALL_DEVICES = [...INTERACTIVE, ...REMOTE];
+// ─────────────────────────────────────────────
+// DEVICES
+// ─────────────────────────────────────────────
+const INTERACTIVE = [
+  {id:'light1', name:'Living Room', icon:'💡', type:'light'},
+  {id:'light2', name:'Kitchen',     icon:'🍳', type:'light'},
+  {id:'light3', name:'Bedroom',     icon:'🌙', type:'light'},
+  {id:'light4', name:'Hallway',     icon:'🏠', type:'light'},
+  {id:'light5', name:'Bathroom',    icon:'🚿', type:'light'},
+  {id:'light6', name:'Garage',      icon:'🚗', type:'light'},
+];
+const REMOTE = [
+  {id:'pump1',       name:'Pool Pump',   icon:'🌊', type:'pool'},
+  {id:'tree_light',  name:'Tree Light',  icon:'🌳', type:'light'},
+  {id:'jacuzzi',     name:'Jacuzzi',     icon:'♨️',  type:'pool'},
+  {id:'pool_filter', name:'Pool Filter', icon:'🔄', type:'pool'},
+  {id:'wall_light',  name:'Wall Light',  icon:'🔆', type:'light'},
+];
+const ALL = [...INTERACTIVE, ...REMOTE];
 
-  // ---------- DEFAULTS ----------
-  const DEFAULTS = {
-    url: 'wss://f2cc1208.ala.eu-central-1.emqxsl.com:8084/mqtt',
-    prefix: 'smarthome/controller1',
-    user: '',
-    pass: '',
-  };
+const DEFAULTS = {
+  url:    'wss://f2cc1208.ala.eu-central-1.emqxsl.com:8084/mqtt',
+  prefix: 'smarthome/controller1',
+  user:   '',
+  pass:   '',
+};
 
-  // ---------- GLOBALS ----------
-  let client = null;
-  let deviceState = {};        // id -> 'ON'/'OFF'
-  let optimisticTimers = {};
-  let periodicSyncInterval = null;
-  let isConnected = false;
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let client = null;
+let deviceState = {};
+let optimisticTimers = {};
+let isConnected = false;
 
-  // DOM elements
-  const interactiveGrid = document.getElementById('interactive-grid');
-  const remoteGrid = document.getElementById('remote-grid');
-  const connPill = document.getElementById('conn-pill');
-  const connLabel = document.getElementById('conn-label');
-  const syncBadgeSpan = document.getElementById('sync-badge');
-  const syncTimestampSpan = document.getElementById('sync-timestamp');
-  const toastEl = document.getElementById('toast');
+// ─────────────────────────────────────────────
+// AMBIENT CANVAS — warm/cool gradient reacting to active count
+// ─────────────────────────────────────────────
+const ambCanvas = document.getElementById('ambient-canvas');
+const ambCtx = ambCanvas.getContext('2d');
+let ambTarget = 0, ambCurrent = 0;
 
-  // helpers
-  function showToast(msg, duration = 2200) {
-    toastEl.textContent = msg;
-    toastEl.classList.add('show');
-    clearTimeout(toastEl._hideTimer);
-    toastEl._hideTimer = setTimeout(() => toastEl.classList.remove('show'), duration);
+function resizeAmbient() {
+  ambCanvas.width  = window.innerWidth;
+  ambCanvas.height = window.innerHeight;
+  drawAmbient();
+}
+
+function drawAmbient() {
+  const w = ambCanvas.width, h = ambCanvas.height;
+  ambCtx.clearRect(0, 0, w, h);
+  const t = ambCurrent; // 0–1
+
+  // Warm blob top-right (lights on = amber glow)
+  const gWarm = ambCtx.createRadialGradient(w * .85, h * .1, 0, w * .85, h * .1, w * .7);
+  gWarm.addColorStop(0, `rgba(255,170,0,${0.06 * t})`);
+  gWarm.addColorStop(1, 'rgba(255,170,0,0)');
+  ambCtx.fillStyle = gWarm;
+  ambCtx.fillRect(0, 0, w, h);
+
+  // Cool blob bottom-left (always slight blue)
+  const gCool = ambCtx.createRadialGradient(w * .15, h * .9, 0, w * .15, h * .9, w * .5);
+  gCool.addColorStop(0, `rgba(0,100,200,${0.05 + 0.03 * (1 - t)})`);
+  gCool.addColorStop(1, 'rgba(0,100,200,0)');
+  ambCtx.fillStyle = gCool;
+  ambCtx.fillRect(0, 0, w, h);
+
+  // Green pulse when something is on
+  if (t > 0) {
+    const gGreen = ambCtx.createRadialGradient(w * .5, h * .35, 0, w * .5, h * .35, w * .6);
+    gGreen.addColorStop(0, `rgba(0,229,122,${0.03 * t})`);
+    gGreen.addColorStop(1, 'rgba(0,229,122,0)');
+    ambCtx.fillStyle = gGreen;
+    ambCtx.fillRect(0, 0, w, h);
   }
+}
 
-  function setConnectionStatus(status) {
-    connPill.className = status;
-    isConnected = (status === 'connected');
-    if (status === 'connected') {
-      connLabel.textContent = 'online';
-      syncBadgeSpan.textContent = '✓ live';
-      syncBadgeSpan.style.background = 'rgba(48,212,106,0.25)';
-    } else if (status === 'connecting') {
-      connLabel.textContent = 'connecting…';
-      syncBadgeSpan.textContent = '⟳';
-      syncBadgeSpan.style.background = 'rgba(245,166,35,0.2)';
-    } else {
-      connLabel.textContent = 'offline';
-      syncBadgeSpan.textContent = '⚠';
-      syncBadgeSpan.style.background = 'rgba(255,69,88,0.2)';
-    }
+function animateAmbient() {
+  ambCurrent += (ambTarget - ambCurrent) * 0.04;
+  drawAmbient();
+  requestAnimationFrame(animateAmbient);
+}
+
+window.addEventListener('resize', resizeAmbient);
+resizeAmbient();
+animateAmbient();
+
+function updateAmbient() {
+  const on = ALL.filter(d => deviceState[d.id] === 'ON').length;
+  ambTarget = on / ALL.length;
+}
+
+// ─────────────────────────────────────────────
+// DOM REFS
+// ─────────────────────────────────────────────
+const iGrid    = document.getElementById('interactive-grid');
+const rGrid    = document.getElementById('remote-grid');
+const arcFill  = document.getElementById('arc-fill');
+const arcDot   = document.getElementById('arc-dot');
+const connLbl  = document.getElementById('conn-label');
+const syncOrb  = document.getElementById('sync-orb');
+const syncDot  = document.getElementById('sync-dot');
+const syncTs   = document.getElementById('sync-ts');
+const energyNum   = document.getElementById('energy-num');
+const energyFill  = document.getElementById('energy-fill');
+const energyChips = document.getElementById('energy-chips');
+const lightsBadge  = document.getElementById('lights-badge');
+const outdoorBadge = document.getElementById('outdoor-badge');
+const toastEl  = document.getElementById('toast');
+
+// ─────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────
+function showToast(msg, ms = 2200) {
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(() => toastEl.classList.remove('show'), ms);
+}
+
+function setConn(status) {
+  isConnected = status === 'connected';
+  connLbl.textContent = status === 'connected' ? 'online' : status === 'connecting' ? 'linking…' : 'offline';
+  if (status === 'connected') {
+    arcFill.setAttribute('stroke', '#00e57a');
+    arcFill.setAttribute('stroke-dasharray', '70 0');
+    arcDot.setAttribute('fill', '#00e57a');
+  } else if (status === 'connecting') {
+    arcFill.setAttribute('stroke', '#ffaa00');
+    arcFill.setAttribute('stroke-dasharray', '35 35');
+    arcDot.setAttribute('fill', '#ffaa00');
+  } else {
+    arcFill.setAttribute('stroke', '#3d4460');
+    arcFill.setAttribute('stroke-dasharray', '0 70');
+    arcDot.setAttribute('fill', '#3d4460');
   }
+}
 
-  function updateSyncTimestamp() {
-    const now = new Date();
-    syncTimestampSpan.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  }
+function updateUI() {
+  const onDevices = ALL.filter(d => deviceState[d.id] === 'ON');
+  const total = ALL.length;
+  energyNum.textContent = onDevices.length + ' / ' + total;
+  energyFill.style.width = ((onDevices.length / total) * 100).toFixed(1) + '%';
 
-  // ---------- CARD RENDERING ----------
-  function updateSingleCard(id, isOn) {
-    const card = document.getElementById(`card-${id}`);
-    const badge = document.getElementById(`badge-${id}`);
-    if (!card) return;
-    card.classList.toggle('on', isOn);
-    card.classList.remove('optimistic');
-    card.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-    if (badge) badge.textContent = isOn ? 'ON' : 'OFF';
-    const statusDot = card.querySelector('.status-dot');
-    if (statusDot) {
-      if (isOn) {
-        statusDot.style.background = '#30d46a';
-        statusDot.style.boxShadow = '0 0 6px #30d46a';
-      } else {
-        statusDot.style.background = '#5a6078';
-        statusDot.style.boxShadow = 'none';
-      }
-    }
-  }
-
-  function createCard(device, isOn) {
-    const div = document.createElement('div');
-    div.className = `card${isOn ? ' on' : ''}`;
-    div.id = `card-${device.id}`;
-    div.setAttribute('role', 'button');
-    div.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-    div.innerHTML = `
-      <div class="card-icon">${device.icon}</div>
-      <div class="card-name">${device.name}</div>
-      <div class="card-status">
-        <div class="status-dot"></div>
-        <span class="status-text" id="badge-${device.id}">${isOn ? 'ON' : 'OFF'}</span>
-      </div>`;
-    div.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const current = deviceState[device.id] === 'ON';
-      handleToggle(device.id, !current);
-    });
-    return div;
-  }
-
-  function renderAllGrids() {
-    interactiveGrid.innerHTML = '';
-    remoteGrid.innerHTML = '';
-    INTERACTIVE.forEach(dev => {
-      const isOn = deviceState[dev.id] === 'ON';
-      interactiveGrid.appendChild(createCard(dev, isOn));
-    });
-    REMOTE.forEach(dev => {
-      const isOn = deviceState[dev.id] === 'ON';
-      remoteGrid.appendChild(createCard(dev, isOn));
-    });
-  }
-
-  // ---------- CORE: FULL STATE SYNC FROM TOPIC smarthome/controller1/devices/state/all ----------
-  function applyFullStateSnapshot(payloadStr, source = 'mqtt') {
-    try {
-      const data = typeof payloadStr === 'string' ? JSON.parse(payloadStr) : payloadStr;
-      if (!data || typeof data !== 'object') return false;
-      let changes = 0;
-      for (const dev of ALL_DEVICES) {
-        const id = dev.id;
-        if (data.hasOwnProperty(id)) {
-          const raw = data[id];
-          const newState = (String(raw).toUpperCase() === 'ON') ? 'ON' : 'OFF';
-          const oldState = deviceState[id];
-          if (oldState !== newState) {
-            deviceState[id] = newState;
-            updateSingleCard(id, newState === 'ON');
-            changes++;
-          }
-          // clear any pending optimistic timer for this device (broker is source of truth)
-          if (optimisticTimers[id]) {
-            clearTimeout(optimisticTimers[id]);
-            delete optimisticTimers[id];
-          }
-        }
-      }
-      if (changes > 0 && source !== 'periodic') {
-        showToast(`🔄 synced ${changes} change${changes !== 1 ? 's' : ''}`, 1200);
-      } else if (source === 'periodic' && changes === 0) {
-        // silent keep-alive
-      }
-      updateSyncTimestamp();
-      return true;
-    } catch (err) {
-      console.warn('Snapshot parse error', err);
-      return false;
-    }
-  }
-
-  // MANUAL / PERIODIC FETCH: PUBLISH TO "devices/state/getAll" (triggers ESP32 to re-publish retained state)
-  function requestFullStateSnapshot() {
-    if (!client || !client.connected) {
-      if (isConnected === false) return;
-      return;
-    }
-    const cfg = loadConfig();
-    const getAllTopic = `${cfg.prefix}/devices/state/getAll`;
-    client.publish(getAllTopic, '', { qos: 0, retain: true }, (err) => {
-      if (err) console.warn('getAll publish error', err);
-      else console.log('📡 Requested fresh full state snapshot');
-    });
-  }
-
-  // ---------- MQTT TOGGLE + optimistic + AFTER ACTION SYNC ----------
-  function handleToggle(id, desiredOn) {
-    const cfg = loadConfig();
-    const newState = desiredOn ? 'ON' : 'OFF';
-    const oldState = deviceState[id] || 'OFF';
-
-    // optimistic UI
-    deviceState[id] = newState;
-    updateSingleCard(id, desiredOn);
-    const cardEl = document.getElementById(`card-${id}`);
-    if (cardEl) cardEl.classList.add('optimistic');
-
-    // revert timer
-    clearTimeout(optimisticTimers[id]);
-    optimisticTimers[id] = setTimeout(() => {
-      if (deviceState[id] === newState) {
-        deviceState[id] = oldState;
-        updateSingleCard(id, oldState === 'ON');
-        showToast(`⚠ ${id} timeout — reverted`, 2000);
-        delete optimisticTimers[id];
-      }
-    }, 3500);
-
-    if (client && client.connected) {
-      const topic = `${cfg.prefix}/devices/${id}/set`;
-      const payload = JSON.stringify({ state: newState });
-      client.publish(topic, payload, { qos: 0 }, (err) => {
-        if (err) {
-          showToast(`Publish failed: ${err.message}`);
-          if (optimisticTimers[id]) clearTimeout(optimisticTimers[id]);
-          deviceState[id] = oldState;
-          updateSingleCard(id, oldState === 'ON');
-          delete optimisticTimers[id];
-        } else {
-          // ✅ AFTER EVERY ACTION: force a fresh full-state sync
-          // This guarantees screen reflects the exact broker state after command is processed.
-          setTimeout(() => {
-            requestFullStateSnapshot();
-          }, 150);
-        }
-      });
-    } else {
-      showToast('No MQTT connection — command pending');
-      setTimeout(() => {
-        if (deviceState[id] === newState && (!client || !client.connected)) {
-          deviceState[id] = oldState;
-          updateSingleCard(id, oldState === 'ON');
-          delete optimisticTimers[id];
-        }
-      }, 2000);
-    }
-  }
-
-  // ---------- MQTT SETUP & SUBSCRIPTIONS ----------
-  function connectMqtt() {
-    if (client) {
-      try { client.end(true); } catch (e) { }
-      client = null;
-    }
-    const cfg = loadConfig();
-    setConnectionStatus('connecting');
-
-    const opts = {
-      keepalive: 30,
-      connectTimeout: 10000,
-      reconnectPeriod: 5000,
-      clean: true,
-      clientId: `casa_dash_${Math.random().toString(36).substr(2, 8)}`
-    };
-    if (cfg.user) opts.username = cfg.user;
-    if (cfg.pass) opts.password = cfg.pass;
-
-    try {
-      client = mqtt.connect(cfg.url, opts);
-    } catch (e) {
-      setConnectionStatus('disconnected');
-      showToast(`Connection error: ${e.message}`);
-      return;
-    }
-
-    client.on('connect', () => {
-      setConnectionStatus('connected');
-      const stateAllTopic = `${cfg.prefix}/devices/state/all`;
-      const perDeviceTopic = `${cfg.prefix}/devices/+/state`;
-
-      client.subscribe(stateAllTopic, { qos: 0 }, (err) => {
-        if (err) console.warn('Subscribe all error', err);
-        else console.log(`✅ Subscribed to ${stateAllTopic}`);
-      });
-      client.subscribe(perDeviceTopic, { qos: 0 }, (err) => {
-        if (err) console.warn('Subscribe per-device error', err);
-      });
-
-      // Immediately request full snapshot after connect
-      setTimeout(() => {
-        requestFullStateSnapshot();
-      }, 200);
-      showToast('Connected — fetching live state', 1500);
-    });
-
-    client.on('message', (topic, message) => {
-      const cfgNow = loadConfig();
-      const payloadStr = message.toString();
-      const fullStateTopic = `${cfgNow.prefix}/devices/state/all`;
-
-      if (topic === fullStateTopic) {
-        // This is the RETAINED / published snapshot from ESP32
-        applyFullStateSnapshot(payloadStr, 'mqtt');
-        return;
-      }
-
-      // per-device state update: individual confirmation
-      const perDevicePattern = new RegExp(`^${escapeRegex(cfgNow.prefix)}/devices/([^/]+)/state$`);
-      const match = topic.match(perDevicePattern);
-      if (match) {
-        const devId = match[1];
-        try {
-          const parsed = JSON.parse(payloadStr);
-          const rawState = parsed.state;
-          const isOn = (String(rawState).toUpperCase() === 'ON');
-          if (optimisticTimers[devId]) {
-            clearTimeout(optimisticTimers[devId]);
-            delete optimisticTimers[devId];
-          }
-          if (deviceState[devId] !== (isOn ? 'ON' : 'OFF')) {
-            deviceState[devId] = isOn ? 'ON' : 'OFF';
-            updateSingleCard(devId, isOn);
-          } else {
-            const card = document.getElementById(`card-${devId}`);
-            if (card) card.classList.remove('optimistic');
-          }
-        } catch (e) { /* ignore non-json */ }
-        return;
-      }
-    });
-
-    client.on('reconnect', () => setConnectionStatus('connecting'));
-    client.on('offline', () => setConnectionStatus('disconnected'));
-    client.on('error', (err) => {
-      setConnectionStatus('disconnected');
-      showToast(`MQTT error: ${err.message || 'unknown'}`);
-    });
-  }
-
-  function escapeRegex(str) {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  }
-
-  // ---------- PERIODIC SYNC (every 5 seconds) ----------
-  function startPeriodicSync() {
-    if (periodicSyncInterval) clearInterval(periodicSyncInterval);
-    periodicSyncInterval = setInterval(() => {
-      if (client && client.connected) {
-        requestFullStateSnapshot();
-        syncBadgeSpan.style.opacity = '0.7';
-        setTimeout(() => { if (syncBadgeSpan) syncBadgeSpan.style.opacity = '1'; }, 300);
-      } else {
-        // if offline, we still try to keep badge neutral
-        syncBadgeSpan.textContent = isConnected ? '✓' : '⚠';
-      }
-    }, 5000); // every 5 seconds exactly as requested
-  }
-
-  // ---------- CONFIG PERSISTENCE ----------
-  function loadConfig() {
-    try {
-      const stored = JSON.parse(localStorage.getItem('casa_cfg') || '{}');
-      return { ...DEFAULTS, ...stored };
-    } catch {
-      return { ...DEFAULTS };
-    }
-  }
-
-  function saveConfig(cfg) {
-    localStorage.setItem('casa_cfg', JSON.stringify(cfg));
-  }
-
-  // ---------- SETTINGS UI ----------
-  const overlay = document.getElementById('settings-overlay');
-  const gearBtn = document.getElementById('gear-btn');
-  const cancelBtn = document.getElementById('cancel-btn');
-  const saveBtn = document.getElementById('save-btn');
-
-  function openSettings() {
-    const cfg = loadConfig();
-    document.getElementById('s-url').value = cfg.url;
-    document.getElementById('s-prefix').value = cfg.prefix;
-    document.getElementById('s-user').value = cfg.user;
-    document.getElementById('s-pass').value = cfg.pass;
-    overlay.classList.add('open');
-  }
-
-  function closeSettings() {
-    overlay.classList.remove('open');
-  }
-
-  gearBtn.addEventListener('click', openSettings);
-  cancelBtn.addEventListener('click', closeSettings);
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSettings(); });
-
-  saveBtn.addEventListener('click', () => {
-    const newCfg = {
-      url: document.getElementById('s-url').value.trim() || DEFAULTS.url,
-      prefix: document.getElementById('s-prefix').value.trim() || DEFAULTS.prefix,
-      user: document.getElementById('s-user').value,
-      pass: document.getElementById('s-pass').value,
-    };
-    saveConfig(newCfg);
-    closeSettings();
-
-    // reset state
-    ALL_DEVICES.forEach(d => { deviceState[d.id] = 'OFF'; });
-    renderAllGrids();
-    Object.keys(optimisticTimers).forEach(t => clearTimeout(optimisticTimers[t]));
-    optimisticTimers = {};
-
-    connectMqtt();
-    showToast('Settings saved, reconnecting…', 1800);
+  // chips
+  energyChips.innerHTML = '';
+  ALL.forEach(dev => {
+    const chip = document.createElement('div');
+    chip.className = 'e-chip' + (deviceState[dev.id] === 'ON' ? ' on' : '');
+    chip.textContent = dev.name;
+    energyChips.appendChild(chip);
   });
 
-  // ---------- BOOTSTRAP ----------
-  function init() {
-    ALL_DEVICES.forEach(d => { deviceState[d.id] = 'OFF'; });
-    renderAllGrids();
-    connectMqtt();
-    startPeriodicSync();
-    updateSyncTimestamp();
+  const lOn = INTERACTIVE.filter(d => deviceState[d.id] === 'ON').length;
+  const oOn = REMOTE.filter(d => deviceState[d.id] === 'ON').length;
+  lightsBadge.textContent  = lOn + ' on';
+  outdoorBadge.textContent = oOn + ' on';
+
+  updateAmbient();
+}
+
+function updateCardEl(id, isOn) {
+  const card = document.getElementById('card-' + id);
+  const badge = document.getElementById('badge-' + id);
+  if (!card) return;
+  card.classList.toggle('on', isOn);
+  card.classList.remove('optimistic');
+  card.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+  if (badge) badge.textContent = isOn ? 'on' : 'off';
+  updateUI();
+}
+
+// ─────────────────────────────────────────────
+// CARD CREATION + HOLD-TO-TOGGLE
+// ─────────────────────────────────────────────
+function createCard(dev, isOn) {
+  const el = document.createElement('div');
+  const isPool = dev.type === 'pool';
+  el.className = 'card' + (isOn ? ' on' : '') + (isPool ? ' pool-type' : '');
+  el.id = 'card-' + dev.id;
+  el.setAttribute('role', 'button');
+  el.setAttribute('aria-pressed', isOn ? 'true' : 'false');
+  el.style.animationDelay = (ALL.indexOf(dev) * 0.05) + 's';
+
+  el.innerHTML = `
+    <div class="card-icon-wrap"><span>${dev.icon}</span></div>
+    <div class="card-name">${dev.name}</div>
+    <div class="card-bottom">
+      <span class="card-state" id="badge-${dev.id}">${isOn ? 'on' : 'off'}</span>
+      <div class="pill-toggle"></div>
+    </div>`;
+
+  // simple tap toggle (no hold required — hold hint is just visual candy)
+  let pressTimer = null;
+  let pressing = false;
+
+  function startPress() {
+    pressing = true;
+    el.classList.add('pressing');
+    pressTimer = setTimeout(() => {}, 400);
   }
 
-  init();
+  function endPress(didToggle) {
+    pressing = false;
+    el.classList.remove('pressing');
+    clearTimeout(pressTimer);
+    if (didToggle) {
+      el.classList.add('activated');
+      setTimeout(() => el.classList.remove('activated'), 400);
+      handleToggle(dev.id, deviceState[dev.id] !== 'ON');
+    }
+  }
+
+  el.addEventListener('mousedown',  () => startPress());
+  el.addEventListener('touchstart', (e) => { e.preventDefault(); startPress(); }, {passive:false});
+  el.addEventListener('mouseup',    () => endPress(true));
+  el.addEventListener('touchend',   (e) => { e.preventDefault(); endPress(true); }, {passive:false});
+  el.addEventListener('mouseleave', () => { if (pressing) endPress(false); });
+
+  return el;
+}
+
+function renderGrids() {
+  iGrid.innerHTML = '';
+  rGrid.innerHTML = '';
+  INTERACTIVE.forEach(d => iGrid.appendChild(createCard(d, deviceState[d.id] === 'ON')));
+  REMOTE.forEach(d => rGrid.appendChild(createCard(d, deviceState[d.id] === 'ON')));
+  updateUI();
+}
+
+// ─────────────────────────────────────────────
+// SNAPSHOT
+// ─────────────────────────────────────────────
+function applySnapshot(payloadStr, source) {
+  try {
+    const data = typeof payloadStr === 'string' ? JSON.parse(payloadStr) : payloadStr;
+    if (!data || typeof data !== 'object') return false;
+    let ch = 0;
+    for (const dev of ALL) {
+      if (data.hasOwnProperty(dev.id)) {
+        const ns = String(data[dev.id]).toUpperCase() === 'ON' ? 'ON' : 'OFF';
+        if (deviceState[dev.id] !== ns) {
+          deviceState[dev.id] = ns;
+          updateCardEl(dev.id, ns === 'ON');
+          ch++;
+        }
+        if (optimisticTimers[dev.id]) {
+          clearTimeout(optimisticTimers[dev.id]);
+          delete optimisticTimers[dev.id];
+        }
+      }
+    }
+    const now = new Date();
+    syncTs.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    syncDot.classList.add('fresh');
+    setTimeout(() => syncDot.classList.remove('fresh'), 3000);
+    if (ch > 0 && source !== 'quiet') showToast('synced ' + ch + ' change' + (ch !== 1 ? 's' : ''), 1400);
+    updateUI();
+    return true;
+  } catch(e) { console.warn('snapshot error', e); return false; }
+}
+
+// ─────────────────────────────────────────────
+// SYNC ORB
+// ─────────────────────────────────────────────
+function setSyncState(s) {
+  syncOrb.classList.remove('syncing', 'synced');
+  const icon = syncOrb.querySelector('.orb-icon');
+  const lbl  = syncOrb.querySelector('.orb-label');
+  if (s === 'syncing') {
+    syncOrb.classList.add('syncing');
+    icon.textContent = '↻';
+    lbl.textContent = 'syncing…';
+  } else if (s === 'synced') {
+    syncOrb.classList.add('synced');
+    icon.textContent = '✓';
+    lbl.textContent = 'synced';
+    setTimeout(() => { setSyncState('idle'); }, 2500);
+  } else {
+    icon.textContent = '↻';
+    lbl.textContent = 'sync';
+  }
+}
+
+function requestSnapshot() {
+  if (!client || !client.connected) { showToast('not connected'); return; }
+  const cfg = loadCfg();
+  setSyncState('syncing');
+  client.publish(cfg.prefix + '/devices/state/getAll', '', {qos:0, retain:true}, err => {
+    if (err) { setSyncState('idle'); showToast('sync failed: ' + err.message); }
+    else setTimeout(() => { if (syncOrb.classList.contains('syncing')) setSyncState('idle'); }, 1500);
+  });
+}
+
+syncOrb.addEventListener('click', requestSnapshot);
+
+// ─────────────────────────────────────────────
+// TOGGLE + OPTIMISTIC
+// ─────────────────────────────────────────────
+function handleToggle(id, desiredOn) {
+  const cfg = loadCfg();
+  const ns = desiredOn ? 'ON' : 'OFF';
+  const os = deviceState[id] || 'OFF';
+  deviceState[id] = ns;
+  updateCardEl(id, desiredOn);
+  const card = document.getElementById('card-' + id);
+  if (card) card.classList.add('optimistic');
+
+  clearTimeout(optimisticTimers[id]);
+  optimisticTimers[id] = setTimeout(() => {
+    if (deviceState[id] === ns) {
+      deviceState[id] = os;
+      updateCardEl(id, os === 'ON');
+      showToast('⚠ ' + id + ' timed out — reverted');
+    }
+    delete optimisticTimers[id];
+  }, 3500);
+
+  if (client && client.connected) {
+    client.publish(cfg.prefix + '/devices/' + id + '/set', JSON.stringify({state:ns}), {qos:0}, err => {
+      if (err) {
+        showToast('publish failed');
+        clearTimeout(optimisticTimers[id]);
+        deviceState[id] = os;
+        updateCardEl(id, os === 'ON');
+      }
+    });
+  } else {
+    showToast('offline — command queued');
+  }
+}
+
+// ─────────────────────────────────────────────
+// MQTT
+// ─────────────────────────────────────────────
+function escRx(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+function connectMqtt() {
+  if (client) { try { client.end(true); } catch(e) {} client = null; }
+  const cfg = loadCfg();
+  setConn('connecting');
+
+  const opts = {
+    keepalive:30, connectTimeout:10000, reconnectPeriod:5000,
+    clean:true, clientId:'casa_' + Math.random().toString(36).substr(2,8)
+  };
+  if (cfg.user) opts.username = cfg.user;
+  if (cfg.pass) opts.password = cfg.pass;
+
+  try { client = mqtt.connect(cfg.url, opts); }
+  catch(e) { setConn('disconnected'); showToast('connect error: ' + e.message); return; }
+
+  client.on('connect', () => {
+    setConn('connected');
+    const cfg2 = loadCfg();
+    client.subscribe(cfg2.prefix + '/devices/state/all',  {qos:0});
+    client.subscribe(cfg2.prefix + '/devices/+/state',    {qos:0});
+    showToast('connected — tap ↻ to sync state', 2200);
+  });
+
+  client.on('message', (topic, msg) => {
+    const cfg2 = loadCfg();
+    const pay  = msg.toString();
+    const allT = cfg2.prefix + '/devices/state/all';
+    if (topic === allT) {
+      applySnapshot(pay, 'mqtt');
+      setSyncState('synced');
+      return;
+    }
+    const re = new RegExp('^' + escRx(cfg2.prefix) + '/devices/([^/]+)/state$');
+    const m  = topic.match(re);
+    if (m) {
+      const devId = m[1];
+      try {
+        const p  = JSON.parse(pay);
+        const on = String(p.state).toUpperCase() === 'ON';
+        if (optimisticTimers[devId]) { clearTimeout(optimisticTimers[devId]); delete optimisticTimers[devId]; }
+        const ns = on ? 'ON' : 'OFF';
+        if (deviceState[devId] !== ns) { deviceState[devId] = ns; updateCardEl(devId, on); }
+        else { const c = document.getElementById('card-' + devId); if(c) c.classList.remove('optimistic'); }
+      } catch(e) {}
+    }
+  });
+
+  client.on('reconnect', () => setConn('connecting'));
+  client.on('offline',   () => setConn('disconnected'));
+  client.on('error', err => { setConn('disconnected'); showToast('MQTT: ' + (err.message || 'error')); });
+}
+
+// ─────────────────────────────────────────────
+// CONFIG + SETTINGS
+// ─────────────────────────────────────────────
+function loadCfg() {
+  try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem('casa_cfg') || '{}')); }
+  catch(e) { return Object.assign({}, DEFAULTS); }
+}
+function saveCfg(c) { localStorage.setItem('casa_cfg', JSON.stringify(c)); }
+
+const overlay   = document.getElementById('settings-overlay');
+const settingsBtn = document.getElementById('settings-btn');
+
+settingsBtn.addEventListener('click', () => {
+  const c = loadCfg();
+  document.getElementById('s-url').value    = c.url;
+  document.getElementById('s-prefix').value = c.prefix;
+  document.getElementById('s-user').value   = c.user;
+  document.getElementById('s-pass').value   = c.pass;
+  overlay.classList.add('open');
+});
+
+document.getElementById('cancel-btn').addEventListener('click', () => overlay.classList.remove('open'));
+overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+document.getElementById('save-btn').addEventListener('click', () => {
+  saveCfg({
+    url:    document.getElementById('s-url').value.trim()    || DEFAULTS.url,
+    prefix: document.getElementById('s-prefix').value.trim() || DEFAULTS.prefix,
+    user:   document.getElementById('s-user').value,
+    pass:   document.getElementById('s-pass').value,
+  });
+  overlay.classList.remove('open');
+  ALL.forEach(d => { deviceState[d.id] = 'OFF'; });
+  Object.keys(optimisticTimers).forEach(k => clearTimeout(optimisticTimers[k]));
+  optimisticTimers = {};
+  renderGrids();
+  connectMqtt();
+  showToast('saved — reconnecting…');
+});
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+ALL.forEach(d => { deviceState[d.id] = 'OFF'; });
+renderGrids();
+connectMqtt();
 </script>
 </body>
 </html>
